@@ -1,6 +1,6 @@
 /**********************************************************
- * FILENAME:    MatrixMultiply.c
- * DESCRIPTION: C-source for matrix multiply - serial 
+ * FILENAME:    MatMultPar.c
+ * DESCRIPTION: C-source for matrix multiply - parallel 
  * AUTHOR:      James Matthew Welch [JMW]
  * SCHOOL:      Arizona State University
  * CLASS:       CSE520: Computer Architecture II
@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 /* change d size as needed */
 int dimension = 1024;
