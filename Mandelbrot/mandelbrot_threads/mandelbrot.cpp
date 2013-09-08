@@ -43,17 +43,20 @@ met:
 #include <algorithm>
 #include "../timing.h"
 #include "mandelbrot_ispc.h"
+#include "params.h"
 using namespace ispc;
 
-unsigned int width;                                                           
-unsigned int height;                                                          
-float x0;                                                                      
-float x1;                                                                       
-float y0;                                                                      
-float y1; 
-int maxIterations;                                                           
+/* TODO: these can all be const since they do not change */
+unsigned int width;
+unsigned int height;
+float x0;
+float x1;
+float y0;
+float y1;
+int maxIterations;
 int *buf;
-const int NUMTHREAD = 2;
+#define SPAWN_THREADS 1
+const int NUMTHREAD = 8;
 
 extern void mandelbrot_serial(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
@@ -63,7 +66,7 @@ extern void mandelbrot_threads(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
 		int output[]);
 
-extern void *print_threads(void* threadid);
+extern void *print_threads(void* params);
 
 /* Write a PPM image file with the image of the Mandelbrot set */
 static void
@@ -86,21 +89,23 @@ writePPM(int *buf, int width, int height, const char *fn) {
 
 int main() {
 
-	width = 768;                                                           
-	height = 512;                                                          
-	x0 = -2;                                                                      
-	x1 = 1;                                                                       
-	y0 = -1;                                                                      
-	y1 = 1;                                                                      
-	maxIterations = 256;                                                            
+	width = 768;
+	height = 512;
+	x0 = -2;
+	x1 = 1;
+	y0 = -1;
+	y1 = 1;
+	maxIterations = 256;
+	int numRuns = 3;
 	buf = new int[width*height]; 
 	int rc;
+	int rowsPerThread = height / NUMTHREAD; // TODO: not always evenly divisible by NUMTHREAD
 
  	// 
 	// Run the serial implementation 3 times, reporting the minimum time.
 	//
 	double minSerial = 1e30;
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < numRuns; ++i) {
 		reset_and_start_timer();
 		mandelbrot_serial(x0, y0, x1, y1, width, height, maxIterations, buf);
 		double dt = get_elapsed_mcycles();
@@ -111,35 +116,64 @@ int main() {
 	writePPM(buf, width, height, "mandelbrot-serial.ppm");
 
 	/* Start of pthread version */
-	// Clear out the buffer                                                                                                                               
+	// Clear out the  
 	for (unsigned int i = 0; i < width * height; ++i)
 		buf[i] = 0;
-	//                                                                                                                                    
-	// And run the pthread implementation 3 times, again reporting the                                                             
-	// minimum time.                                                                                         
-	//                                                                                                                                                            
+	//
+	// And run the pthread implementation 3 times, again reporting the 
+	// minimum time 
+	//
 	double minThread = 1e30;
+	float DY = y1-y0;		// total range of Y
+	float dy = DY / NUMTHREAD; // range of y per thread
+	float main_y0 = y0; //TODO: need to adjust to account for remainder rows
+	float main_y1 = y0 + dy;
 
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < numRuns; ++i) {
 		pthread_t threads[NUMTHREAD-1];
-
 		reset_and_start_timer();
 		
 		// Loop to spawn NUMTHREAD-1 threads
 		for (int k = 0; k < NUMTHREAD-1; k++) {
-			// Spawn threads with appropriate argument setting what partial problem the thread will be working on
+			// Spawn threads with appropriate argument setting what 
+			// partial problem the thread will be working on
+			thread_parameters *params = new thread_parameters;
+			params->tid = k+1; // offset thread ID's to account for main() being thread 0
+			params->x0 = x0;
+			params->x1 = x1;
+			/* TODO: TA: the following two variables don't make sense.  
+			 * Why should each of the threads get the same range for y??????? */
+			params->y0 = main_y0; //(params->tid-1)  * dy + y0;
+			params->y1 = main_y1; //params->y0 + dy;
+
+			params->rowsPerThread = rowsPerThread; 
+			//TODO: needs to be adjusted for main thread to pick up the extra rows that are remainder
+			params->width = width;
+			params->maxIterations = maxIterations;
+			params->output = buf;
+
+	
 			// HINT: define a struct to pass to print_threads instead of k
-			rc = pthread_create(&threads[k], NULL, print_threads, (void *)k);
-			if (rc)
-			{
+			rc = pthread_create(&threads[k], NULL, print_threads, (void *)params);
+			if (rc){
 				printf("ERROR: Thread Creation FAILED: %d\n", rc);
 				exit(-1);
+			}else{
+#ifdef VERBOSE
+				printf("main():: Thread(%d) spawned successfully\n", k);
+#endif
 			}
+
 		}
 		
 		// TODO: Call mandelbrot_serial with the appropriate arguments
 		// main() thread will also perfrom useful partial computation		
-		
+#ifdef DEBUG
+		printf("main():: Working on rows [0 : %d], y=[%3.2f : %3.2f]\n", 
+				rowsPerThread-1, main_y0, main_y1);
+#endif
+		mandelbrot_serial(x0, main_y0, x1, main_y1, width, rowsPerThread, maxIterations, buf);
+
 		// Guarantee target thread(s) termination 
 		for (int k = 0; k < NUMTHREAD-1; k++){
 			rc = pthread_join(threads[k], NULL/*&att*/);
@@ -148,7 +182,6 @@ int main() {
 				exit(-1);
 			}
 		}
-
 		double dt = get_elapsed_mcycles();
 		minThread = std::min(minThread, dt);
 	}

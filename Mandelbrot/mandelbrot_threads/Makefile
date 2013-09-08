@@ -16,17 +16,17 @@ mandelbrot.o: mandelbrot.cpp ../timing.h
 	g++ -c $(CONFIG) mandelbrot.cpp 
 
 mandelbrot_serial.o: mandelbrot_serial.cpp
-	g++ -c $(COFNIG) mandelbrot_serial.cpp
+	g++ -c $(CONFIG) mandelbrot_serial.cpp
 
 mandelbrot_threads.o: mandelbrot_threads.cpp
-	g++ -c $(COFNIG) mandelbrot_threads.cpp
+	g++ -c $(CONFIG) mandelbrot_threads.cpp
 
 clean:
 	rm -f mandelbrot_threads *.o core core.*
 	ctags --c-kinds=+defglmpstux -R
 
 tidy: clean
-	rm -f *.*~ *~
+	rm -f *.*~ *~ *.ppm
 
 DEBUG_FLAGS= -g3 -ggdb -O0 -Wall -pedantic -DDEBUG -lpthread
 CONFIG= -Wall -pedantic -lpthread
@@ -37,5 +37,8 @@ debug: clean mandelbrot_threads
 fast: CONFIG=-O2 -lpthread 
 fast: clean mandelbrot_threads
 
-run: mandelbrot_threads
+run: debug mandelbrot_threads
 	./mandelbrot_threads
+
+show: run
+	eog mandelbrot-thread.ppm &

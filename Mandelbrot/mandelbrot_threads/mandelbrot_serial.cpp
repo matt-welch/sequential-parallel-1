@@ -31,6 +31,9 @@
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
 */
 
+#ifdef VERBOSE
+	#include <stdio.h>
+#endif
 
 static int mandel(float c_re, float c_im, int count) {
     float z_re = c_re, z_im = c_im;
@@ -62,6 +65,11 @@ void mandelbrot_serial(float x0, float y0, float x1, float y1,
 
             int index = (j * width + i);
             output[index] = mandel(x, y, maxIterations);
+#ifdef VERBOSE
+			if(index%1000 == 0)
+				printf("serial output[%d] = %d, x=%3.3f, y=%3.3f\n", 
+						index, output[index], x, y);
+#endif
         }
     }
 }
