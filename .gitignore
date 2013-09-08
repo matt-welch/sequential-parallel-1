@@ -1,5 +1,6 @@
 # Object files
 *.o
+*objs*
 
 # Libraries
 *.lib
@@ -15,3 +16,9 @@
 *.exe
 *.out
 *.app
+
+# result data and images
+*.ppm
+
+# tag files for vim
+tags

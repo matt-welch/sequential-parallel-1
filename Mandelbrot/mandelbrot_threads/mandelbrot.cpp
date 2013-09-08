@@ -53,7 +53,7 @@ float y0;
 float y1; 
 int maxIterations;                                                           
 int *buf;
-int NUMTHREAD = 2;
+const int NUMTHREAD = 2;
 
 extern void mandelbrot_serial(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
@@ -94,6 +94,7 @@ int main() {
 	y1 = 1;                                                                      
 	maxIterations = 256;                                                            
 	buf = new int[width*height]; 
+	int rc;
 
  	// 
 	// Run the serial implementation 3 times, reporting the minimum time.
@@ -121,7 +122,6 @@ int main() {
 
 	for (int i = 0; i < 3; ++i) {
 		pthread_t threads[NUMTHREAD-1];
-		int rc;
 
 		reset_and_start_timer();
 		
