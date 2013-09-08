@@ -6,6 +6,7 @@ typedef struct _thread_parameters{
 	float y0;
 	float y1;
 	int rowsPerThread;
+	int extraRows;
 	int width;
 	int maxIterations;
 	int *output;

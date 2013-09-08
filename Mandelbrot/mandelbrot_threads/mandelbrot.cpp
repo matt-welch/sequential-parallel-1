@@ -55,8 +55,8 @@ float y0;
 float y1;
 int maxIterations;
 int *buf;
-#define SPAWN_THREADS 1
-const int NUMTHREAD = 8;
+int NUMTHREAD = 8;
+int numRuns = 5;
 
 extern void mandelbrot_serial(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
@@ -96,11 +96,14 @@ int main() {
 	y0 = -1;
 	y1 = 1;
 	maxIterations = 256;
-	int numRuns = 3;
 	buf = new int[width*height]; 
 	int rc;
 	int rowsPerThread = height / NUMTHREAD; // TODO: not always evenly divisible by NUMTHREAD
-
+	int extraRows = height % NUMTHREAD; // add these rows to main's job and offset others
+#ifdef DEBUG
+	 printf("main()::INIT:: nThreads = %d, rowsPerThread=%d, extraRows=%d\n",
+			NUMTHREAD, rowsPerThread, extraRows);
+#endif
  	// 
 	// Run the serial implementation 3 times, reporting the minimum time.
 	//
@@ -147,6 +150,7 @@ int main() {
 			params->y1 = main_y1; //params->y0 + dy;
 
 			params->rowsPerThread = rowsPerThread; 
+			params->extraRows = extraRows;
 			//TODO: needs to be adjusted for main thread to pick up the extra rows that are remainder
 			params->width = width;
 			params->maxIterations = maxIterations;
@@ -170,9 +174,10 @@ int main() {
 		// main() thread will also perfrom useful partial computation		
 #ifdef DEBUG
 		printf("main():: Working on rows [0 : %d], y=[%3.2f : %3.2f]\n", 
-				rowsPerThread-1, main_y0, main_y1);
+				rowsPerThread-1+extraRows, main_y0, main_y1);
 #endif
-		mandelbrot_serial(x0, main_y0, x1, main_y1, width, rowsPerThread, maxIterations, buf);
+		mandelbrot_serial(x0, main_y0, x1, main_y1, width, 
+				rowsPerThread+extraRows, maxIterations, buf);
 
 		// Guarantee target thread(s) termination 
 		for (int k = 0; k < NUMTHREAD-1; k++){

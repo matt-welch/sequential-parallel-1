@@ -37,7 +37,7 @@ debug: clean mandelbrot_threads
 fast: CONFIG=-O2 -lpthread 
 fast: clean mandelbrot_threads
 
-run: debug mandelbrot_threads
+run: mandelbrot_threads
 	./mandelbrot_threads
 
 show: run

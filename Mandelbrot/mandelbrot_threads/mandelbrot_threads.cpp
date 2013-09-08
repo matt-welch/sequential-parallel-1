@@ -32,6 +32,7 @@
 */
 #include <stdio.h>
 #include "params.h"
+#include "../timing.h"
 
 extern unsigned int width;
 extern unsigned int height;
@@ -69,13 +70,14 @@ void mandelbrot_chunks(void *tp)
 */
 void *print_threads(void* arg) 
 {
+		reset_and_start_timer();
 	// TODO: Your code here
 	// Thread Parameters
 	thread_parameters* params = (thread_parameters*)arg;
 	const int tid		= params->tid;
 	const int width		= params->width;
 	const int numRows	= params->rowsPerThread;
-	const int myFirstRow= tid * numRows;
+	const int myFirstRow= tid * numRows + params->extraRows;
 	const int myLastRow = myFirstRow + numRows - 1;
 
 	const float x0		= params->x0;
@@ -122,5 +124,8 @@ void *print_threads(void* arg)
 	printf("print_threads()::TID(%d) | count=%d, minIndex = %d, dIm=%d, maxIndex = %d, dIx=%d\n",
 		   	tid, count, minIndex, dIm, maxIndex, dIx);
 #endif
+	double dt = get_elapsed_mcycles();
+	printf("[mandelbrot thread (%d)]:\t[%.3f] millon cycles\n", tid, dt);
+
 	return (void*) params;
 }
