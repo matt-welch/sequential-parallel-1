@@ -23,14 +23,17 @@ int main(int argc, char *argv[])
 	double *A, *B, *C;
 	struct timeval begin, end;
 
+	int runs = 3;
 	if (argc == 2)
 		dimension = atoi(argv[1]);
+	if (argc == 3)
+		runs = atoi(argv[2]);
 
 	printf("Dimension = %d\n", dimension);
+	printf("Serial Matrix Multiplication, executing %d runs\n", runs+1);
 
 	srand(292);
 	for (d = dimension ; d < dimension+1; d=d+128 ) {
-		int runs = 0;
 		for ( ; runs>=0; runs--) {
 			A = (double*)malloc(d*d*sizeof(double));
 			B = (double*)malloc(d*d*sizeof(double));
@@ -57,7 +60,7 @@ int main(int argc, char *argv[])
 #endif
 
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] init loop took %ldus\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] init loop took %ldus\t", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 			
 			gettimeofday(&begin, NULL);
 			for(i = 0; i < d; i++) {

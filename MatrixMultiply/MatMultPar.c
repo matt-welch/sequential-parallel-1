@@ -8,14 +8,21 @@
  * SECTION:     83380
  * TERM:        Fall 2013
  *********************************************************/
-
+/* Points to consider in the design of the parallel algorithm: 
+ * (1) assume cache line size of 64 bytes == 8 * doubles (8-bytes each)  
+ *		--> load 8 doubles at a time to take advantage of the cache
+ * (2) attempt to avoid cache thrashing by loading blocks of data into the
+ * cache whenever possible
+ * */
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
-#define DEBUG 1
+#undef DEBUG 1
 #define SERIAL_FILL 1
+#define PRELOAD_VECTOR 0
+#define RAND_FILL 1
 /* use serial fill for now because the parallel fill is not working */
 
 /* change d size as needed */
@@ -51,12 +58,18 @@ int main(int argc, char *argv[])
 	struct timeval begin, end;
 	pthread_t *tids;
 	thread_parameters * data;
+	int runs = 3;
 
-	if (argc == 2)
+	if (argc > 1)
 		dimension = atoi(argv[1]);
+	if (argc > 2) 
+		g_NUM_PROCESSOR_THREADS = atoi(argv[2]);
+	if (argc > 3)
+		runs = atoi(argv[3]);
 
 	nRows = dimension / g_NUM_PROCESSOR_THREADS;
 	printf("Dimension = %d\n", dimension);
+	printf("Number of Threads = %d\n", g_NUM_PROCESSOR_THREADS);
 	printf("nRows per thread = %d\n", nRows);
 
 	/* allocate threadIDs for each of the threads */
@@ -66,10 +79,11 @@ int main(int argc, char *argv[])
 	srand(292);
 	/* TODO: why is this loop here?? it only executes once */
 	for (d = dimension ; d < dimension+1; d=d+128 ) {
-		int runs = 0;
 		for ( ; runs>=0; runs--) {
+#ifdef DEBUG
 			/* print run number */
 			printf("\n\nRun ## r%d\n", runs);
+#endif
 			/* allocate square arrays */
 			A = (double*)malloc(d*d*sizeof(double));
 			B = (double*)malloc(d*d*sizeof(double));
@@ -99,6 +113,7 @@ int main(int argc, char *argv[])
 				data->dim = dimension;
 				data->first = nRows*i;
 				data->last = data->first + nRows -1;
+				/* TODO: need to account for rows that are remainder */
 				data->A = A;
 				data->B = B;
 				data->C = C;
@@ -182,17 +197,37 @@ void * doMMult_thread( void * arg){
 	d = params->dim;
 	firstRow = params->first;
 	lastRow = params->last;
+#if PRELOAD_VECTOR
+	double * B_column;
+	B_column = (double*)malloc(d * sizeof(double));
+#endif
 
 #ifdef DEBUG
 	printf("doMMult_Thread():: tid=%d, d=%d, firstRow=%d, lastRow=%d, A[%d]=%0.3f\n", intTID, d, firstRow, lastRow, firstRow, params->A[firstRow]);
 #endif
 	for(r = firstRow; r <= lastRow; r++) {
 		for(c = 0; c < d; c++) {
+			/* preload the column of B into a local variable to reduce cache
+			 * thrashing and contention - hopefully the stride prefetcher
+			 * will speed this up*/
+#if PRELOAD_VECTOR
+			for(k=0; k<d; k++){
+				bix=d*k+c;
+				B_column[k] = params->B[bix];
+			}
+#endif
 			for(k = 0; k < d; k++) {
 				aix = d*r+k;
 				bix = d*k+c; 
 				cix = d*r+c;
+#if PRELOAD_VECTOR
+				params->C[cix] += params->A[aix] * B_column[k]; 
+#else
+				/* TODO: accumulate C[cix] into a local variable to prevent
+				 * multiple writes to memory */
+
 				params->C[cix] += params->A[aix] * params->B[bix]; 
+#endif
 #ifdef DEBUG
 				count++;
 				printf("tid=%d, r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", intTID, r, c, cix, aix, bix); 
