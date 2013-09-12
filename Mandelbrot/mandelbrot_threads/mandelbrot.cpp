@@ -64,7 +64,7 @@ float y1;
 int maxIterations;
 int *buf;
 int NUMTHREAD = 8; // use 8 threads by default, but take NUMTHREAD as input
-int numRuns = 1;
+int numRuns = 5;
 
 extern void mandelbrot_serial(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
@@ -143,13 +143,12 @@ int main(int argc, char* argv[]) {
 	// minimum time 
 	//
 	double minThread = 1e30;
-	float DY = y1-y0;		// total range of Y
+	//float DY = y1-y0;		// total range of Y
 	float dy = (y1 - y0) / height;
-	float y_range = DY / NUMTHREAD; // range of y per thread
+	//float y_range = DY / NUMTHREAD; // range of y per thread
 	float main_y0 = y0; // adjust to account for remainder rows
 	float main_y1 = y0 + (rowsPerThread + extraRows) * dy;
 	
-
 	for (int i = 0; i < numRuns; ++i) {
 		pthread_t threads[NUMTHREAD-1];
 		reset_and_start_timer();

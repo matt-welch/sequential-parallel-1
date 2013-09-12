@@ -70,8 +70,7 @@ void mandelbrot_chunks(void *tp)
 */
 void *print_threads(void* arg) 
 {
-		reset_and_start_timer();
-	// TODO: Your code here
+	reset_and_start_timer();
 	// Thread Parameters
 	thread_parameters* params = (thread_parameters*)arg;
 	const int tid		= params->tid;
