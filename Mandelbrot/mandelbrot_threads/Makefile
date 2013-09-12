@@ -26,7 +26,7 @@ clean:
 	ctags --c-kinds=+defglmpstux -R
 
 tidy: clean
-	rm -f *.*~ *~ *.ppm
+	rm -f *.*~ *~ *.ppm output
 
 DEBUG_FLAGS= -g3 -ggdb -O0 -Wall -pedantic -DDEBUG -lpthread
 CONFIG= -Wall -pedantic -lpthread

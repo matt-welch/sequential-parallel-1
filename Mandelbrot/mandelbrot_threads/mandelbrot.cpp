@@ -211,7 +211,7 @@ int main(int argc, char* argv[]) {
 	/* End of pthread version */
 	
 	// Report speedup over serial mandelbrot
-	printf("\t\t\t\t(%.2fx speedup from threading)\n", minSerial/minThread);
+	printf("\t\t\t\t(%.2fx speedup from %d threads)\n", minSerial/minThread, NUMTHREAD);
 
 	return 0;
 }
