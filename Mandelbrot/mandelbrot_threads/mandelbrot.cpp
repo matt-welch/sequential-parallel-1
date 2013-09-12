@@ -46,6 +46,14 @@ met:
 #include "params.h"
 using namespace ispc;
 
+#include <iostream>
+using std::cout;
+using std::cin; 
+using std::endl;
+
+#include <cstdlib> // atoi()
+using std::atoi;
+
 /* TODO: these can all be const since they do not change */
 unsigned int width;
 unsigned int height;
@@ -55,8 +63,8 @@ float y0;
 float y1;
 int maxIterations;
 int *buf;
-int NUMTHREAD = 8;
-int numRuns = 5;
+int NUMTHREAD = 8; // use 8 threads by default, but take NUMTHREAD as input
+int numRuns = 1;
 
 extern void mandelbrot_serial(float x0, float y0, float x1, float y1,
 		int width, int height, int maxIterations,
@@ -87,7 +95,7 @@ writePPM(int *buf, int width, int height, const char *fn) {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
 
 	width = 768;
 	height = 512;
@@ -96,9 +104,17 @@ int main() {
 	y0 = -1;
 	y1 = 1;
 	maxIterations = 256;
+	// multiple threads
 	buf = new int[width*height]; 
 	int rc;
-	int rowsPerThread = height / NUMTHREAD; // TODO: not always evenly divisible by NUMTHREAD
+
+	if(argc > 1)
+		NUMTHREAD = atoi(argv[1]);
+
+	cout << "Performing Mandelbrot calculations with " << NUMTHREAD <<
+		" threads." << endl;
+
+	int rowsPerThread = height / NUMTHREAD; // not always evenly divisible by NUMTHREAD
 	int extraRows = height % NUMTHREAD; // add these rows to main's job and offset others
 #ifdef DEBUG
 	 printf("main()::INIT:: nThreads = %d, rowsPerThread=%d, extraRows=%d\n",
@@ -128,9 +144,11 @@ int main() {
 	//
 	double minThread = 1e30;
 	float DY = y1-y0;		// total range of Y
-	float dy = DY / NUMTHREAD; // range of y per thread
-	float main_y0 = y0; //TODO: need to adjust to account for remainder rows
-	float main_y1 = y0 + dy;
+	float dy = (y1 - y0) / height;
+	float y_range = DY / NUMTHREAD; // range of y per thread
+	float main_y0 = y0; // adjust to account for remainder rows
+	float main_y1 = y0 + (rowsPerThread + extraRows) * dy;
+	
 
 	for (int i = 0; i < numRuns; ++i) {
 		pthread_t threads[NUMTHREAD-1];
@@ -144,14 +162,11 @@ int main() {
 			params->tid = k+1; // offset thread ID's to account for main() being thread 0
 			params->x0 = x0;
 			params->x1 = x1;
-			/* TODO: TA: the following two variables don't make sense.  
-			 * Why should each of the threads get the same range for y??????? */
-			params->y0 = main_y0; //(params->tid-1)  * dy + y0;
-			params->y1 = main_y1; //params->y0 + dy;
+			params->y0 = y0; //main_y0; //(params->tid-1)  * y_range + y0;
+			params->y1 = y1; //main_y1; //params->y0 + y_range;
 
 			params->rowsPerThread = rowsPerThread; 
 			params->extraRows = extraRows;
-			//TODO: needs to be adjusted for main thread to pick up the extra rows that are remainder
 			params->width = width;
 			params->maxIterations = maxIterations;
 			params->output = buf;

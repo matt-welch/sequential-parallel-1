@@ -84,15 +84,15 @@ void *print_threads(void* arg)
 	const float x1 		= params->x1;
 	const float y0 		= params->y0;
 	const float y1 		= params->y1;
-	const float dx = (x1 - x0) / width;
-	const float dy = (y1 - y0) / numRows;
+	const float dx = (x1 - x0) / width; // x-width of each pixel
+	const float dy = (y1 - y0) / height; //numRows; // y-width of each pixel
 	// variables for mandelbrot calculation
 	float x, y;
 	int index;
 	int * output = params->output;
 #ifdef DEBUG
-	printf("TID(%d):: rows [%d : %d], y=[%3.2f : %3.2f]\n",
-		   	tid, myFirstRow, myLastRow, y0, y1);
+	printf("TID(%d):: rows [%d : %d], y=[%3.2f : %3.2f], dy=%0.5f\n",
+		   	tid, myFirstRow, myLastRow, y0, y1, dy);
 	#ifdef VERBOSE
 		int count=0, dIm=0, dIx=0;
 		int minIndex=768*512, maxIndex=0;
