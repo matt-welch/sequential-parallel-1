@@ -245,6 +245,8 @@ void * doMMult_thread( void * arg){
 #ifdef DEBUG
 	printf("doMMult_Thread():: tid=%d, d=%d, firstRow=%d, lastRow=%d, A[%d]=%0.3f\n", intTID, d, firstRow, lastRow, firstRow, params->A[firstRow]);
 #endif
+
+
 	for(r = firstRow; r <= lastRow; r++) {
 		for(c = 0; c < d; c++) {
 			/* preload the column of B into a local variable to reduce cache
@@ -264,19 +266,14 @@ void * doMMult_thread( void * arg){
 #if LOOP_BLOCKING
 				params->C[cix] += params->A[aix] * B_column[k]; 
 #else
+#if LOCAL_ACC
 				/* accumulate C[cix] into a local variable to prevent
 				 * multiple writes to memory */
-#if LOCAL_ACC
 				acc += params->A[aix] * params->B[bix]; 
 #else
 				/* TODO: "block" the loop */
 				params->C[cix] += params->A[aix] * params->B[bix]; 
 #endif /* LOCAL_ACC */
-#endif
-#ifdef VERBOSE
-				count++;
-				printf("tid=%d, r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", 
-						intTID, r,     c,    cix,    aix,   bix); 
 #endif
 			}
 #if LOCAL_ACC
