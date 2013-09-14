@@ -42,9 +42,9 @@ typedef struct nqueen_arg {
 } nqueen_arg, * nqueen_arg_t;
 
 
-void * nq_parallel_thread(void * arg_) {
+void * nq_parallel_thread(void * arg) {
   // TODO: Thread body
-  return 0;
+  return;
 }
 
 
@@ -53,33 +53,38 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 	int row, int n,
 	int parallel_depth) 
 {
-  if (row == n) { 
-    return 1;
-  } else {
-    int n_threads = 0;
-    nqueen_arg_t args = 0;
-    unsigned int block = col | left | right;
-    int count = 0;
-    while (block + 1 < (1 << n)) {
-      unsigned int open = (block + 1) & (~block);
-      if (row < parallel_depth) {
-	/****** spawn thread up to parallel depth ******/
-	assert(n_threads < n);
-	if (args == 0) args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * n);
-	// TODO: package argument for the thread
-	// TODO: spawn thread
-	n_threads++;
-      } else {
-		// TODO: Beyond the parallel depth use sequential approach
-    }
+	if (row == n) { 
+    	return 1;
+	} else {
+		int n_threads = 0;
+	    nqueen_arg_t args = 0;
+	    unsigned int block = col | left | right;
+	    int count = 0;
+	    while (block + 1 < (1 << n)) {
+			unsigned int open = (block + 1) & (~block);
+			if (row < parallel_depth) {
+				/****** spawn thread up to parallel depth ******/
+				assert(n_threads < n);
+				if (args == 0) {
+					args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * n);
+				}
+				// TODO: package argument for the thread
+				// TODO: spawn thread
+				n_threads++;
+			} 
+			else {
+				// TODO: Beyond the parallel depth use sequential approach
+			}
 	
-    /****** wait for termination of spawned threads ******/
-    for (int i = 0; i < n_threads; i++) {
-      // TODO : Ensure thread termination
-      // Do NOT forget to collect return values from each thread :)
-    }
-    return count;
-  }
+			/****** wait for termination of spawned threads ******/
+			int i;
+			for (i = 0; i < n_threads; i++) {
+				// TODO : Ensure thread termination
+				// Do NOT forget to collect return values from each thread :)
+			}
+		}
+    	return count;
+	}
 }
 
 /****** END of THREADS ******/
@@ -91,48 +96,47 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
    (a unit of work is represented by args to nqueen procedures) */
 typedef struct work_queue {
   pthread_mutex_t mx;
-  int headd;
+  int head;
   int size;
   int capacity;
   nqueen_arg_t args;
 } work_queue, *work_queue_t;
 
 
-void work_queue_add(work_queue_t wq, 
-		    unsigned int col, unsigned int left, unsigned int right, 
-		    int row, int n, int parallel_depth) {
-  int sz = wq->size;
-  int capacity = wq->capacity;
-  nqueen_arg_t args = wq->args;
-  if (sz >= capacity) {
-    int new_capacity = capacity * 2;
-    if (new_capacity <= capacity) new_capacity = capacity + 1;
-    nqueen_arg_t new_args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * new_capacity);
-	  // Copy all arguments of existing queue to the new queue with updated capacity
-    bcopy(args, new_args, sizeof(nqueen_arg) * capacity);
-    wq->capacity = capacity = new_capacity;
-    wq->args = args = new_args;
-  }
-  assert(sz < capacity);
-  nqueen_arg_t arg = args + sz;
+void work_queue_add(work_queue_t wq, unsigned int col, unsigned int left, unsigned int right, int row, int n, int parallel_depth) {
+	int sz = wq->size;
+	int capacity = wq->capacity;
+	nqueen_arg_t args = wq->args;
+
+	if (sz >= capacity) {
+		int new_capacity = capacity * 2;
+		if (new_capacity <= capacity) new_capacity = capacity + 1;
+		nqueen_arg_t new_args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * new_capacity);
+		// Copy all arguments of existing queue to the new queue with updated capacity
+		bcopy(args, new_args, sizeof(nqueen_arg) * capacity);
+		wq->capacity = capacity = new_capacity;
+		wq->args = args = new_args;
+	}
+	assert(sz < capacity);
+	nqueen_arg_t arg = args + sz;
 	// TODO : Package the right arg components
-  wq->size = sz + 1;
+	wq->size = sz + 1;
 }
 
 work_queue_t mk_work_queue() {
-  int capacity = Q_CAPACITY;
-  work_queue_t wq
-    = (work_queue_t)malloc(sizeof(work_queue));
-  nqueen_arg_t args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * capacity);
-  assert(wq);
-  assert(args);
-  // Initialize the mutex
-  pthread_mutex_init(&wq->mx, 0);
-  wq->head = 0;
-  wq->size = 0;
-  wq->capacity = capacity;
-  wq->args = args;
-  return wq;
+	int capacity = Q_CAPACITY;
+	work_queue_t wq = (work_queue_t)malloc(sizeof(work_queue));
+	nqueen_arg_t args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * capacity);
+	assert(wq);
+	assert(args);
+	// Initialize the mutex
+	pthread_mutex_init(&wq->mx, 0);
+	wq->head = 0;
+	wq->size = 0;
+	wq->capacity = capacity;
+	wq->args = args;
+
+	return wq;
 }
 
 int nq_work(work_queue_t wq,
@@ -162,18 +166,9 @@ void * nq_worker(void * wq_) {
 	// TODO : Lock Mutex
 	// CRITICAL SECTION : get the head of work queue and retreive "arg". Then, update head of queue
 	// TODO : Unlock Mutex
-    pthread_mutex_lock(&wq->mx); 
-    {
-      int hd = wq->hd;
-      if (hd < wq->sz) {
-	arg = wq->args + hd;
-	wq->hd = hd + 1;
-      }
-    } 
-    pthread_mutex_unlock(&wq->mx);
+
     if (arg ==0) break;		/* no work left, quit */
-    arg->ans 
-      = nqw(wq, arg->v, arg->l, arg->r, arg->row, arg->n, arg->parallel_depth);
+    // TODO: Call nq_work recursively with appropriate arguments
   }
 }
 
@@ -193,7 +188,7 @@ int nq_master(int n, int parallel_depth) {
   for (i = 0; i < N_THREADS; i++) {
     // TODO : Endure Thread termination
   }
-  for (i = 0; i < wq->sz; i++) {
+  for (i = 0; i < wq->size; i++) {
     // TODO : Collect Thread return values from wq
   }
   return count;
@@ -224,29 +219,37 @@ int main(int argc, char * argv[]) {
 		return -1;
 	}
 
-  int st = atoi(argv[1]);
-  int n = atoi(argv[2]);
-  int parallel_depth = -1;
-  if (argc > 3) parallel_depth = atoi(argv[3]);
-  double t0 = cur_time();
-  int n_solutions = 0;
-  switch (st){
+	int st = atoi(argv[1]);
+	int n = atoi(argv[2]);
+	int parallel_depth = -1;
+
+  	if (argc > 3) {
+		parallel_depth = atoi(argv[3]);
+	}
+
+	double t0 = cur_time();
+	int n_solutions = 0;
+	switch (st){
 	case 0:
-		printf ("****** Solving nQueen using serial recursion ******\n");
+		printf ("\n\n****** Solving nQueen using serial recursion ******\n\n");
 		n_solutions = nq_serial (0, 0, 0, 0, n);
 		break;
 	case 1:
-		printf ("****** Solving nQueen using threads ******\n");
+		printf ("\n\n****** Solving nQueen using threads ******\n\n");
 		n_solutions = nq_parallel (0, 0, 0, 0, n, parallel_depth);
 		break;
 	case 2:
-		printf ("****** Solving nQueen using work pool and threads ******\n");
+		printf ("\n\n****** Solving nQueen using work pool and threads ******\n\n");
 		n_solutions = nq_master (n, parallel_depth);
 		break;
 	default:
-		printf ("****** No Strategy defined for %d ******\n", st);
+		printf ("\n\n****** No Strategy defined for %d ******\n\n", st);
 		return -1;
-  }
-  double t1 = cur_time();
-  printf("%.3f sec (%d queen = %d)\n", t1 - t0, n, n_solutions);
+	}
+	double t1 = cur_time();
+
+	printf("%.3f sec (%d queen = %d)\n\n", t1 - t0, n, n_solutions);
+
+	return 0;
 }
+

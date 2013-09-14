@@ -74,8 +74,10 @@ int main(int argc, char *argv[])
 						bix = d*k+j;
 						cix = d*i+j;
 						C[cix] += A[aix] * B[bix];
-#ifdef VERBOSE
+#ifdef DEBUG
 						count++;
+#endif
+#ifdef VERBOSE
 						printf("r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", i, j, cix, aix, bix); 
 #endif
 					}
