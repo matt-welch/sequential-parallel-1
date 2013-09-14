@@ -6,6 +6,7 @@
 
 #define N_THREADS 2
 #define Q_CAPACITY 1000
+#define DEBUG
 
 /************ SERIAL APPROACH ************/
 /**** column, left_diag and right_diag are bitmaps that indicate which positions are blocked ****/
@@ -29,30 +30,43 @@ int nq_serial(unsigned int col, unsigned int left, unsigned int right, int row, 
   }
 }
 
-
+/* /////////////////////////////////////////////////////////////////////// */
 /*********** THREADS **************/
 
 void * nq_parallel_thread(void * arg);
 
 typedef struct nqueen_arg {
-	//TODO: Add components that are placeholder for the following
+	//todo: Add components that are placeholder for the following
 	// 1. Thread ID
+	int tid;
 	// 2. Arguments for the thread function nq_parallel_thread()
+	unsigned int col;
+	unsigned int left;
+	unsigned int right;
+	int row;
+	int n;
 	// 3. Return value (why do we need place holder for return value ?) 
+	int count;
+	int parDepth;
 } nqueen_arg, * nqueen_arg_t;
 
+/* /////////////////////////////////////////////////////////////////////// */
 
 void * nq_parallel_thread(void * arg) {
   // TODO: Thread body
+  printf("I'm a thread, but I don't know who\n");
   return;
 }
 
+/* /////////////////////////////////////////////////////////////////////// */
 
 /**** Main procedure for threads approach ****/
 int nq_parallel(unsigned int col, unsigned int left, unsigned int right, 
 	int row, int n,
 	int parallel_depth) 
 {
+	int rc; /* return code for pthread create & join */
+	pthread_t threads[32];
 	if (row == n) { 
     	return 1;
 	} else {
@@ -68,18 +82,31 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 				if (args == 0) {
 					args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * n);
 				}
-				// TODO: package argument for the thread
+				// todo: package argument for the thread
+				args->tid = n_threads;
+				args->col = col;
+				args->left = left;
+				args->right = right;
+				args->row = row;
+				args->n = n;
+				args->count = 0;
+				args->parDepth = parallel_depth;
+				
 				// TODO: spawn thread
+				//rc = pthread_create(&threads[n_threads], NULL, nq_parallel_thread , (void *)args);
+
 				n_threads++;
 			} 
 			else {
 				// TODO: Beyond the parallel depth use sequential approach
+				count += nq_serial(col, left, right, row, n);
 			}
 	
 			/****** wait for termination of spawned threads ******/
 			int i;
 			for (i = 0; i < n_threads; i++) {
 				// TODO : Ensure thread termination
+				//rc = pthread_join(threads[n_threads], (void*) args);
 				// Do NOT forget to collect return values from each thread :)
 			}
 		}
@@ -87,6 +114,7 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 	}
 }
 
+/* /////////////////////////////////////////////////////////////////////// */
 /****** END of THREADS ******/
 
 
