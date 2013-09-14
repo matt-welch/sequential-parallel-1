@@ -19,13 +19,17 @@
 #include <time.h>
 #include <sys/time.h>
 #include <pthread.h>
-#undef DEBUG 1
-#define SERIAL_FILL 1
-#define PRELOAD_VECTOR 0
-#define RAND_FILL 1
+/* #define DEBUG 1 */
 /* use serial fill for now because the parallel fill is not working */
-
+#define SERIAL_FILL 1
+/* block the inner loop to maximize locality */
+#define LOOP_BLOCKING 0
+/* fill with random numbers instead of linearly increasing data */
+#define RAND_FILL 1 
+/* accumulate C in a local variable */
+#define LOCAL_ACC 1  
 /* change d size as needed */
+
 int dimension = 840; /* LCM of {8,7,6,5,4,3,2} - always divides evenly mod would be better*/
 
 /* structure to pass parameters to a processor thread */
@@ -39,10 +43,7 @@ typedef struct _thread_parameters{
 	int		last;
 } thread_parameters;
 
-/* Maximum number of threads */
-const int g_MAX_PROCESSOR_THREADS = 2;
-/* default number of processor threads & its mutex
-   10 by default unless a number is passed in as a cmd line arg */
+/* default number of processor threads */
 int g_NUM_PROCESSOR_THREADS = 4;
 
 /* thread function */
@@ -52,7 +53,10 @@ void fillMatrices_serial(double* A, double* B, double* C, int d);
 
 int main(int argc, char *argv[])
 {
-	int d, i, j, k, nRows;
+	int d, i, j, k, nRows, extraRows, firstRow, aix, bix, cix;
+#ifdef VERBOSE
+	int count;
+#endif
 	int code;	/* pthread status code */
 	double *A, *B, *C;
 	struct timeval begin, end;
@@ -62,22 +66,31 @@ int main(int argc, char *argv[])
 
 	if (argc > 1)
 		dimension = atoi(argv[1]);
-	if (argc > 2) 
+	if (argc > 2){ 
 		g_NUM_PROCESSOR_THREADS = atoi(argv[2]);
+		if(g_NUM_PROCESSOR_THREADS > dimension){
+			printf("ERROR: More threads (%d) requested than matrix dimension (%d). Using %d threads.\n", g_NUM_PROCESSOR_THREADS, dimension, dimension);
+			g_NUM_PROCESSOR_THREADS = dimension;
+		}
+	}
 	if (argc > 3)
 		runs = atoi(argv[3]);
 
 	nRows = dimension / g_NUM_PROCESSOR_THREADS;
+	extraRows = dimension % g_NUM_PROCESSOR_THREADS;
 	printf("Dimension = %d\n", dimension);
 	printf("Number of Threads = %d\n", g_NUM_PROCESSOR_THREADS);
 	printf("nRows per thread = %d\n", nRows);
+	printf("extraRows = %d\n", extraRows);
+
+
 
 	/* allocate threadIDs for each of the threads */
 	tids = (pthread_t*) malloc(g_NUM_PROCESSOR_THREADS * sizeof(pthread_t));
 
-	/* seed for pseudorandom number generation */
+	/* seed for pseudorandom number generation so we generate the same numbers*/
 	srand(292);
-	/* TODO: why is this loop here?? it only executes once */
+	/* This loop is useful for testing many sizes of matrices */
 	for (d = dimension ; d < dimension+1; d=d+128 ) {
 		for ( ; runs>=0; runs--) {
 #ifdef DEBUG
@@ -144,7 +157,7 @@ int main(int argc, char *argv[])
 				data->tid = i;
 				data->dim = dimension;
 				data->first = nRows*i;
-				data->last = data->first + nRows -1;
+				data->last = data->first + nRows - 1;
 				data->A = A;
 				data->B = B;
 				data->C = C;
@@ -153,14 +166,37 @@ int main(int argc, char *argv[])
 #endif
 				/* spawn threads */
 				code = pthread_create(&tids[i], NULL, doMMult_thread, (void*) data);
-#ifdef DEBUG
 				if( code != 0 ){
 					printf( "\nmain(): Error: unable to create processor thread #%d\n",i );
 				}else{
+#ifdef DEBUG
 					printf("\nmain(): Calc Thread #%d created successfully!\n", i);
-				}
 #endif	
+				}
 			}
+
+			/* main thread cleans up by calculating the extra rows while
+			 * threads are working */
+#ifdef DEBUG
+			printf("i = %d, dim = %d, nRows = %d, i*nRows=%d, extra=%d\n", i, dimension, nRows, i*nRows, extraRows);
+			printf("main_first=%d, last=%d\n", i*nRows, i*nRows + extraRows -1);
+#endif
+			firstRow = nRows*g_NUM_PROCESSOR_THREADS;
+			for(i = firstRow; i < d; i++) {
+				for(j = 0; j < d; j++) {
+					for(k = 0; k < d; k++) {
+						aix = d*i+k;
+						bix = d*k+j;
+						cix = d*i+j;
+						C[cix] += A[aix] * B[bix];
+#ifdef VERBOSE
+						count++;
+						printf("r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", i, j, cix, aix, bix); 
+#endif
+					}
+				}
+			}
+
 
 			/* join threads */
 			for( i = 0; i < g_NUM_PROCESSOR_THREADS; ++i)
@@ -186,18 +222,22 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
+/* ////////////////////////////////////////////////////////////////////// */
 void * doMMult_thread( void * arg){
 	/* local variables */
 	thread_parameters* params = (thread_parameters*)arg;
 
-	int intTID = params->tid;
-	int d, r, c, k, firstRow, lastRow, count=0;
+#ifdef DEBUG
+	int intTID = params->tid; 
+	int count=0;
+#endif
+	int d, r, c, k, firstRow, lastRow;
+	double acc; /* local accumulator variable to prevent multiple writes to C */
 	int cix, aix, bix;
 	d = params->dim;
 	firstRow = params->first;
 	lastRow = params->last;
-#if PRELOAD_VECTOR
+#if LOOP_BLOCKING
 	double * B_column;
 	B_column = (double*)malloc(d * sizeof(double));
 #endif
@@ -210,29 +250,38 @@ void * doMMult_thread( void * arg){
 			/* preload the column of B into a local variable to reduce cache
 			 * thrashing and contention - hopefully the stride prefetcher
 			 * will speed this up*/
-#if PRELOAD_VECTOR
+#if LOOP_BLOCKING
 			for(k=0; k<d; k++){
 				bix=d*k+c;
 				B_column[k] = params->B[bix];
 			}
 #endif
+			acc = 0;
+			cix = d*r+c;
 			for(k = 0; k < d; k++) {
 				aix = d*r+k;
 				bix = d*k+c; 
-				cix = d*r+c;
-#if PRELOAD_VECTOR
+#if LOOP_BLOCKING
 				params->C[cix] += params->A[aix] * B_column[k]; 
 #else
-				/* TODO: accumulate C[cix] into a local variable to prevent
+				/* accumulate C[cix] into a local variable to prevent
 				 * multiple writes to memory */
-
+#if LOCAL_ACC
+				acc += params->A[aix] * params->B[bix]; 
+#else
+				/* TODO: "block" the loop */
 				params->C[cix] += params->A[aix] * params->B[bix]; 
+#endif /* LOCAL_ACC */
 #endif
-#ifdef DEBUG
+#ifdef VERBOSE
 				count++;
-				printf("tid=%d, r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", intTID, r, c, cix, aix, bix); 
+				printf("tid=%d, r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", 
+						intTID, r,     c,    cix,    aix,   bix); 
 #endif
 			}
+#if LOCAL_ACC
+			params->C[cix] = acc;
+#endif
 		}
 	}
 #ifdef DEBUG

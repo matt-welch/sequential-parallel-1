@@ -13,20 +13,24 @@
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
+#define RAND_FILL 1
 
 /* change d size as needed */
 int dimension = 840;
 
 int main(int argc, char *argv[])
 {
-	int d, i, j, k, aix, bix, cix, count=0;
+	int d, i, j, k, aix, bix, cix;
+#ifdef DEBUG
+	int count=0;
+#endif
 	double *A, *B, *C;
 	struct timeval begin, end;
 
 	int runs = 3;
-	if (argc == 2)
+	if (argc > 1)
 		dimension = atoi(argv[1]);
-	if (argc == 3)
+	if (argc > 2)
 		runs = atoi(argv[2]);
 
 	printf("Dimension = %d\n", dimension);
@@ -70,7 +74,7 @@ int main(int argc, char *argv[])
 						bix = d*k+j;
 						cix = d*i+j;
 						C[cix] += A[aix] * B[bix];
-#ifdef DEBUG
+#ifdef VERBOSE
 						count++;
 						printf("r=%d, c=%d, cix=%d, aix=%d, bix=%d\n", i, j, cix, aix, bix); 
 #endif

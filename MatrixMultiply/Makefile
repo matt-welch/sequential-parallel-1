@@ -11,20 +11,28 @@
 
 all: serial parallel
 
-serial: MatrixMultiply.c
+serial: matmult.o
 	gcc MatrixMultiply.c -o matmult $(CONFIG)
 
-parallel: MatMultPar.c
+parallel: matmultpar.o
 	gcc MatMultPar.c -o matmultpar $(CONFIG)
+
+
+matmult.o: MatrixMultiply.c
+	gcc -c MatrixMultiply.c -o matmult.o $(CONFIG)
+
+matmultpar.o: MatMultPar.c
+	gcc -c MatMultPar.c -o matmultpar.o $(CONFIG)
 
 clean:
 	rm -f matmult matmultpar *.o core core.*
+	ctags --c-kinds=+defglmpstux -R
 
 tidy: clean
 	rm -f *.*~ *~
 
 DEBUG_FLAGS = -g3 -ggdb -O0 -Wall -pedantic -DDEBUG -lpthread
-CONFIG		= -Wall -pedantic -lpthread -O2
+CONFIG		= -Wall -pedantic -lpthread -O3
 EASY_FLAGS	= -lpthread
 
 debug: CONFIG=$(DEBUG_FLAGS)
@@ -43,3 +51,6 @@ tests: debug
 testp: debug
 	./matmultpar
 
+run: serial parallel
+	./matmultpar 256 4  0
+	./matmult 256 0
