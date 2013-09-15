@@ -28,8 +28,9 @@
 #define RAND_FILL 1 
 /* accumulate C in a local variable */
 #define LOCAL_ACC 1  
+/* produce timing values for threads if defined */
+#define THREAD_TIMING
 /* change d size as needed */
-
 int dimension = 840; /* LCM of {8,7,6,5,4,3,2} - always divides evenly mod would be better*/
 
 /* structure to pass parameters to a processor thread */
@@ -147,7 +148,7 @@ int main(int argc, char *argv[])
 				pthread_join( tids[ i ], NULL );
 #endif /* end SERIAL_FILL */
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] init loop took %ldus\t", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] init loop took %ldus\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 
 			gettimeofday(&begin, NULL);
 
@@ -224,14 +225,17 @@ int main(int argc, char *argv[])
 }
 /* ////////////////////////////////////////////////////////////////////// */
 void * doMMult_thread( void * arg){
+#ifdef THREAD_TIMING
+	struct timeval begin, end;
+	gettimeofday(&begin, NULL); /* returns the wall clock time */
+#endif
 	/* local variables */
 	thread_parameters* params = (thread_parameters*)arg;
-
-#ifdef DEBUG
+	int d, r, c, k, firstRow, lastRow;
 	int intTID = params->tid; 
+#ifdef DEBUG
 	int count=0;
 #endif
-	int d, r, c, k, firstRow, lastRow;
 	double acc; /* local accumulator variable to prevent multiple writes to C */
 	int cix, aix, bix;
 	d = params->dim;
@@ -284,6 +288,13 @@ void * doMMult_thread( void * arg){
 #ifdef DEBUG
 	printf("doMMult_Thread()::POST:: thread %d, C[%d]=%0.3f, count=%d\n", 
 			intTID, firstRow, params->A[firstRow], count);
+#endif
+#ifdef THREAD_TIMING
+	gettimeofday(&end, NULL); /* returns the wall clock time */
+	printf("Thread(%d) %d rows, execution time:  %ld us\n", 
+			intTID, lastRow - firstRow + 1, 
+			((end.tv_sec * 1000000 + end.tv_usec) - 
+			 (begin.tv_sec * 1000000 + begin.tv_usec)));
 #endif
 	return NULL;
 }
