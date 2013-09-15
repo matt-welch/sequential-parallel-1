@@ -10,24 +10,41 @@
 
 /************ SERIAL APPROACH ************/
 /**** column, left_diag and right_diag are bitmaps that indicate which positions are blocked ****/
-int nq_serial(unsigned int col, unsigned int left, unsigned int right, int row, int n) 
+int nq_serial(unsigned int col, 
+		unsigned int left, 
+		unsigned int right, 
+		int row, int n) 
 {
-  if (row == n) { 
-    return 1;
-  } else {
-    int count = 0;
-    unsigned int block = col | left | right;
-    while (block + 1 < (1 << n)) {
-      unsigned int open = (block + 1) & (~block);
-      count += nq_serial(col | open, 
-	      ((left | open) << 1) & ((1 << n) - 1), 
-	      (right | open) >> 1, 
-	      row + 1, 
-	      n);
-      block |= open;
-    }
-    return count;
-  }
+#ifdef VERBOSE
+	if(1){
+		printf("serial init on: C=%x, L=%x, R=%x, r=%d\n", 
+				col, left, right, 
+				row);
+	}
+#endif
+	if (row == n) { 
+		return 1; /*only for a valid solution (leaf of DFS) */
+	} else {
+
+		int count = 0;
+		unsigned int block = col | left | right;
+		while (block + 1 < (1 << n)) { /* resurse until all columns blocked */
+			unsigned int open = (block + 1) & (~block);
+			count += nq_serial(col | open, 
+					((left | open) << 1) & ((1 << n) - 1), 
+					(right | open) >> 1, 
+					row + 1, 
+					n);
+			block |= open;
+		}
+#ifdef VERBOSE
+		printf("serial complete on: C=%x,L=%x,R=%x,r=%d, count=%d\n", 
+				col, left, right, 
+				row, count);
+
+#endif
+		return count;
+	}
 }
 
 /* /////////////////////////////////////////////////////////////////////// */
@@ -53,9 +70,21 @@ typedef struct nqueen_arg {
 /* /////////////////////////////////////////////////////////////////////// */
 
 void * nq_parallel_thread(void * arg) {
-  // TODO: Thread body
-  printf("I'm a thread, but I don't know who\n");
-  return;
+	// TODO: Thread body
+	nqueen_arg* params = (nqueen_arg*) arg;
+#ifdef DEBUG
+	printf("thread(%d), working on C=%x, L=%x, R=%x, r=%d, count=%d\n", 
+			params->tid, params->col, params->left, params->right, 
+			params->row, params->count);
+#endif
+
+	params->count += nq_serial(params->col, params->left, params->right, 
+			params->row, params->n);
+
+#ifdef DEBUG
+	printf("thread(%d): count = %d\n", params->tid, params->count);
+#endif
+	return (void*) params;
 }
 
 /* /////////////////////////////////////////////////////////////////////// */
@@ -67,6 +96,7 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 {
 	int rc; /* return code for pthread create & join */
 	pthread_t threads[32];
+	unsigned int mask = ((1<<n) - 1);/* ones */
 	if (row == n) { 
     	return 1;
 	} else {
@@ -78,36 +108,52 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 			unsigned int open = (block + 1) & (~block);
 			if (row < parallel_depth) {
 				/****** spawn thread up to parallel depth ******/
+#ifdef DEBUG
+				printf("main()::n_threads=%d, row=%d\n", n_threads, row);
+#endif
 				assert(n_threads < n);
 				if (args == 0) {
 					args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * n);
 				}
 				// todo: package argument for the thread
 				args->tid = n_threads;
-				args->col = col;
-				args->left = left;
-				args->right = right;
-				args->row = row;
+				/* each thread starts with different "seed" column */
+				args->col = (1<<n_threads) | open;
+				/* shifted to the right (left diag are right leaning) */
+				args->left = (left | open) << 1; //(args->col >> 1); 
+				/* shifted to the left (right diag are left leanng) */
+				args->right = (right | open) >> 1 ; //(args->col << 1) & mask; 
+				args->row = row+1;
 				args->n = n;
 				args->count = 0;
 				args->parDepth = parallel_depth;
 				
 				// TODO: spawn thread
-				//rc = pthread_create(&threads[n_threads], NULL, nq_parallel_thread , (void *)args);
+				rc = pthread_create(&threads[n_threads], NULL, nq_parallel_thread , (void *)args);
 
 				n_threads++;
 			} 
 			else {
 				// TODO: Beyond the parallel depth use sequential approach
+#ifdef DEBUG
+				printf("launching nq_serial(%x, %x, %x, %d, %d)\n", 
+						col, left, right, row, n);
+#endif
 				count += nq_serial(col, left, right, row, n);
 			}
-	
+			printf("Current Count = %d\n", count);
 			/****** wait for termination of spawned threads ******/
 			int i;
 			for (i = 0; i < n_threads; i++) {
 				// TODO : Ensure thread termination
-				//rc = pthread_join(threads[n_threads], (void*) args);
+				rc = pthread_join(threads[i], (void*) args);
+#ifdef VERBOSE
+				if(rc)
+					printf("Error (%d) joining thread %d\n", rc, i);
+#endif
 				// Do NOT forget to collect return values from each thread :)
+				args = (nqueen_arg_t)args;
+				count += args->count;
 			}
 		}
     	return count;
