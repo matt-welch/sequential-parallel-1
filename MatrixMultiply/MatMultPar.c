@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 				pthread_join( tids[ i ], NULL );
 #endif /* end SERIAL_FILL */
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] init loop took %ldus\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] init loop took ,%ld,us\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 
 			gettimeofday(&begin, NULL);
 
@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
 			}
 #endif
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] %ldus\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] ,,%ld,us\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 
 			free(A);
 			free(B);
@@ -291,8 +291,8 @@ void * doMMult_thread( void * arg){
 #endif
 #ifdef THREAD_TIMING
 	gettimeofday(&end, NULL); /* returns the wall clock time */
-	printf("Thread(%d) %d rows, execution time:  %ld us\n", 
-			intTID, lastRow - firstRow + 1, 
+	printf("Thread(%d): execution time:,,,%ld,us\n", 
+			intTID,
 			((end.tv_sec * 1000000 + end.tv_usec) - 
 			 (begin.tv_sec * 1000000 + begin.tv_usec)));
 #endif

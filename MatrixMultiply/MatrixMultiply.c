@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 #endif
 
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] init loop took %ldus\t", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] init loop took ,%ld,us\t", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 			
 			gettimeofday(&begin, NULL);
 			for(i = 0; i < d; i++) {
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 			}
 #endif
 			gettimeofday(&end, NULL);
-			printf("[%d/%d] %ldus\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
+			printf("[%d/%d] ,%ld,us\n", d, 5-runs, ((end.tv_sec * 1000000 + end.tv_usec) - (begin.tv_sec * 1000000 + begin.tv_usec)));
 			
 			free(A);
 			free(B);
