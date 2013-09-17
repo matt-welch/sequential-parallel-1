@@ -124,7 +124,7 @@ void *print_threads(void* arg)
 		   	tid, count, minIndex, dIm, maxIndex, dIx);
 #endif
 	double dt = get_elapsed_mcycles();
-	printf("[mandelbrot thread (%d)]:\t[%.3f] millon cycles\n", tid, dt);
+	printf("[mandelbrot thread; million cycles]=,%d,%.3f\n", tid, dt);
 
 	return (void*) params;
 }

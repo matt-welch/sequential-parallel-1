@@ -111,8 +111,7 @@ int main(int argc, char* argv[]) {
 	if(argc > 1)
 		NUMTHREAD = atoi(argv[1]);
 
-	cout << "Performing Mandelbrot calculations with " << NUMTHREAD <<
-		" threads." << endl;
+	cout << "Performing Mandelbrot calculations with threads = ," << NUMTHREAD << endl;
 
 	int rowsPerThread = height / NUMTHREAD; // not always evenly divisible by NUMTHREAD
 	int extraRows = height % NUMTHREAD; // add these rows to main's job and offset others
@@ -131,7 +130,7 @@ int main(int argc, char* argv[]) {
 		minSerial = std::min(minSerial, dt);
 	}
 
-	printf("[mandelbrot serial]:\t\t[%.3f] millon cycles\n", minSerial);
+	printf("[mandelbrot serial]:\t\tmillion cycles = ,%.3f\n", minSerial);
 	writePPM(buf, width, height, "mandelbrot-serial.ppm");
 
 	/* Start of pthread version */
@@ -205,13 +204,13 @@ int main(int argc, char* argv[]) {
 		minThread = std::min(minThread, dt);
 	}
 
-	printf("[mandelbrot thread]:\t\t[%.3f] millon cycles\n", minThread);
+	printf("[mandelbrot thread execution time (million cycles) =,%.3f\n", minThread);
 	writePPM(buf, width, height, "mandelbrot-thread.ppm");
 
 	/* End of pthread version */
 	
 	// Report speedup over serial mandelbrot
-	printf("\t\t\t\t(%.2fx speedup from %d threads)\n", minSerial/minThread, NUMTHREAD);
+	printf("\t\t\t\t(,%.2f,x speedup from ,%d, threads)\n", minSerial/minThread, NUMTHREAD);
 
 	return 0;
 }

@@ -19,6 +19,9 @@
 
 # result data and images
 *.ppm
+*output*
+*results*
+*analysis*
 
 # tag files for vim
 tags

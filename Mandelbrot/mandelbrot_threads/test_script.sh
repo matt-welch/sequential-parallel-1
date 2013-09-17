@@ -1,3 +1,4 @@
+#/bin/bash
 if [ -f output ]
 then
 	rm output
