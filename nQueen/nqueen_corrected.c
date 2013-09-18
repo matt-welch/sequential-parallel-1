@@ -6,7 +6,7 @@
 
 #define N_THREADS 2
 #define Q_CAPACITY 1000
-#define DEBUG
+//#define DEBUG
 
 /************ SERIAL APPROACH ************/
 /**** column, left_diag and right_diag are bitmaps that indicate which positions are blocked ****/
@@ -69,22 +69,20 @@ typedef struct nqueen_arg {
 
 /* /////////////////////////////////////////////////////////////////////// */
 
-void * nq_parallel_thread(void * arg) {
+void * nq_parallel_thread(void * params) {
 	// TODO: Thread body
-	nqueen_arg* params = (nqueen_arg*) arg;
+	/* thread body simply calls nq_parallel and allows it to handle the
+	 * recursion */
+	nqueen_arg * arg = (nqueen_arg * ) params;
+
 #ifdef DEBUG
 	printf("thread(%d), working on C=%x, L=%x, R=%x, r=%d, count=%d\n", 
-			params->tid, params->col, params->left, params->right, 
-			params->row, params->count);
+			arg->tid, arg->col, arg->left, arg->right, 
+			arg->row, arg->count);
 #endif
-
-	params->count += nq_serial(params->col, params->left, params->right, 
-			params->row, params->n);
-
-#ifdef DEBUG
-	printf("thread(%d): count = %d\n", params->tid, params->count);
-#endif
-	return (void*) params;
+	arg->count = nq_parallel(arg->col, arg->left, arg->right, 
+			arg->row, arg->n, arg->parDepth);
+	return (void*) arg;
 }
 
 /* /////////////////////////////////////////////////////////////////////// */
@@ -115,48 +113,45 @@ int nq_parallel(unsigned int col, unsigned int left, unsigned int right,
 				if (args == 0) {
 					args = (nqueen_arg_t)malloc(sizeof(nqueen_arg) * n);
 				}
+				/* might need to reference args as an array here */
 				// todo: package argument for the thread
-				args->tid = n_threads;
-				/* each thread starts with different "seed" column */
-				args->col = (1<<n_threads) | open;
-				/* shifted to the right (left diag are right leaning) */
-				args->left = (left | open) << 1; //(args->col >> 1); 
-				/* shifted to the left (right diag are left leanng) */
-				args->right = (right | open) >> 1 ; //(args->col << 1) & mask; 
-				args->row = row+1;
-				args->n = n;
-				args->count = 0;
-				args->parDepth = parallel_depth;
+				args[n_threads].tid = n_threads;
+				args[n_threads].col = col | open;
+				args[n_threads].left = (left | open) << 1 & ((1<<n) - 1); //(args->col >> 1); 
+				args[n_threads].right = (right | open) >> 1 ; //(args->col << 1) & mask; 
+				args[n_threads].row = row+1;/* increment row for the child thread */
+				args[n_threads].n = n;
+				args[n_threads].count = count;
+				args[n_threads].parDepth = parallel_depth;
 				
 				// TODO: spawn thread
-				rc = pthread_create(&threads[n_threads], NULL, nq_parallel_thread , (void *)args);
+				rc = pthread_create(&threads[n_threads], NULL, nq_parallel_thread , args+n_threads);
 
 				n_threads++;
 			} 
 			else {
 				// TODO: Beyond the parallel depth use sequential approach
+				count = nq_serial(col, left, right, row, n);
+			}
 #ifdef DEBUG
-				printf("launching nq_serial(%x, %x, %x, %d, %d)\n", 
-						col, left, right, row, n);
-#endif
-				count += nq_serial(col, left, right, row, n);
-			}
 			printf("Current Count = %d\n", count);
-			/****** wait for termination of spawned threads ******/
-			int i;
-			for (i = 0; i < n_threads; i++) {
-				// TODO : Ensure thread termination
-				rc = pthread_join(threads[i], (void*) args);
-#ifdef VERBOSE
-				if(rc)
-					printf("Error (%d) joining thread %d\n", rc, i);
-#endif
-				// Do NOT forget to collect return values from each thread :)
-				args = (nqueen_arg_t)args;
-				count += args->count;
-			}
+#endif			
+			block |= open;
 		}
-    	return count;
+		/****** wait for termination of spawned threads ******/
+		int i;
+		for (i = 0; i < n_threads; i++) {
+			// TODO : Ensure thread termination
+			rc = pthread_join(threads[i], (void*) args+i);
+#ifdef VERBOSE
+			if(rc)
+				printf("Error (%d) joining thread %d\n", rc, i);
+#endif
+			// Do NOT forget to collect return values from each thread :)
+			args = (nqueen_arg_t)args;
+			count += args[i].count;
+		}
+ 	return count;
 	}
 }
 
@@ -228,6 +223,7 @@ int nq_work(work_queue_t wq,
     int count = 0;
 	// TODO: Serial recursive approach
 	// Call nq_work recursively with appropriate arguments
+	
     return count;
   }
 }
