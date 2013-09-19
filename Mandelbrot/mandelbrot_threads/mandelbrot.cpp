@@ -109,9 +109,9 @@ int main(int argc, char* argv[]) {
 	int rc;
 
 	if(argc > 1)
-		NUMTHREAD = atoi(argv[1]);
+		NUMTHREAD = atoi(argv[1])+1;
 
-	cout << "Performing Mandelbrot calculations with threads = ," << NUMTHREAD << endl;
+	cout << "Performing Mandelbrot calculations with threads = ," << NUMTHREAD-1 << endl;
 
 	int rowsPerThread = height / NUMTHREAD; // not always evenly divisible by NUMTHREAD
 	int extraRows = height % NUMTHREAD; // add these rows to main's job and offset others
@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
 	/* End of pthread version */
 	
 	// Report speedup over serial mandelbrot
-	printf("\t\t\t\t(,%.2f,x speedup from ,%d, threads)\n", minSerial/minThread, NUMTHREAD);
+	printf("\t\t\t\t(,%.2f,x speedup from ,%d, threads)\n", minSerial/minThread, NUMTHREAD-1);
 
 	return 0;
 }
